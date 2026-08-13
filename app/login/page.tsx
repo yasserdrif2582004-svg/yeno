@@ -1,0 +1,125 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { loginUser } from "@/lib/firebase-utils";
+import { QrCode, Eye, EyeOff } from "lucide-react";
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      await loginUser(email.trim(), password);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      console.error("ERREUR FIREBASE:", err.code, err.message);
+
+      if (err.code === "auth/invalid-credential") {
+        setError("Email ou mot de passe incorrect. Vérifiez vos identifiants.");
+      } else if (err.code === "auth/user-not-found") {
+        setError("Aucun compte trouvé avec cet email.");
+      } else if (err.code === "auth/wrong-password") {
+        setError("Mot de passe incorrect.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Trop de tentatives. Réessayez plus tard.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Format d'email invalide.");
+      } else {
+        setError(err.message || "Erreur de connexion");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-yeno-500 flex items-center justify-center">
+              <QrCode className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-2xl text-gray-900">YENO</span>
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Connexion</h1>
+          <p className="text-gray-600 mt-2">
+            Accédez à votre espace restaurant
+          </p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          {error && (
+            <div className="mb-4 p-4 rounded-xl bg-red-50 text-red-600 text-sm font-medium">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yeno-500 outline-none transition"
+                placeholder="vous@restaurant.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yeno-500 outline-none transition pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-yeno-500 text-white font-semibold hover:bg-yeno-600 transition disabled:opacity-50"
+            >
+              {loading ? "Connexion..." : "Se connecter"}
+            </button>
+          </form>
+          <p className="text-center text-sm text-gray-600 mt-6">
+            Pas encore de compte ?{" "}
+            <Link
+              href="/register"
+              className="text-yeno-600 font-medium hover:underline"
+            >
+              S'inscrire
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
