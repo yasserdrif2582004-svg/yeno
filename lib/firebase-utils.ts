@@ -158,10 +158,6 @@ export async function addItem(data: any) {
   return ref.id;
 }
 
-export async function updateItem(id: string, data: any) {
-  await updateDoc(doc(db, "items", id), data);
-}
-
 export async function deleteItem(id: string) {
   await deleteDoc(doc(db, "items", id));
 }
