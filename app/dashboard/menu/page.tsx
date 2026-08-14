@@ -1,5 +1,5 @@
 "use client";
-
+import { Pencil, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import {
@@ -9,8 +9,8 @@ import {
   getItems,
   addItem,
   deleteItem,
+  updateItem,
 } from "@/lib/firebase-utils";
-import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function MenuPage() {
   const { userData } = useAuth();
@@ -23,6 +23,10 @@ export default function MenuPage() {
     description: "",
     image: "",
   });
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -82,6 +86,37 @@ export default function MenuPage() {
   async function handleDeleteItem(id: string) {
     if (!confirm("Supprimer ce plat ?")) return;
     await deleteItem(id);
+    loadCategories();
+  }
+
+  function handleEditStart(item: any, categoryId: string) {
+    setEditingItemId(item.id);
+    setEditingCategoryId(categoryId);
+    setNewItem({
+      name: item.name,
+      price: item.price.toString(),
+      description: item.description || "",
+      image: item.image || "",
+    });
+  }
+
+  function handleEditCancel() {
+    setEditingItemId(null);
+    setEditingCategoryId(null);
+    setNewItem({ name: "", price: "", description: "", image: "" });
+  }
+
+  async function handleEditSave(categoryId: string) {
+    if (!editingItemId || !newItem.name || !newItem.price) return;
+    await updateItem(editingItemId, {
+      name: newItem.name,
+      price: parseFloat(newItem.price),
+      description: newItem.description,
+      image: newItem.image,
+    });
+    setEditingItemId(null);
+    setEditingCategoryId(null);
+    setNewItem({ name: "", price: "", description: "", image: "" });
     loadCategories();
   }
 
@@ -150,7 +185,6 @@ export default function MenuPage() {
                       key={item.id}
                       className="flex items-center gap-4 p-3 rounded-xl bg-gray-50"
                     >
-                      {/* ⭐ <img> au lieu de <Image> ⭐ */}
                       {item.image && (
                         <img
                           src={item.image}
@@ -167,9 +201,19 @@ export default function MenuPage() {
                             <span className="font-semibold text-yeno-600">
                               {item.price} DH
                             </span>
+                            {/* ✏️ BOUTON CRAYON */}
+                            <button
+                              onClick={() => handleEditStart(item, cat.id)}
+                              className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                              title="Modifier"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            {/* 🗑️ BOUTON POUBELLE */}
                             <button
                               onClick={() => handleDeleteItem(item.id)}
                               className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                              title="Supprimer"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -219,7 +263,6 @@ export default function MenuPage() {
                       }
                       className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-yeno-500"
                     />
-                    {/* ⭐ Preview avec <img> ⭐ */}
                     {newItem.image && (
                       <img
                         src={newItem.image}
@@ -227,13 +270,31 @@ export default function MenuPage() {
                         className="w-10 h-10 rounded-lg object-cover shrink-0"
                       />
                     )}
-                    <button
-                      onClick={() => handleAddItem(cat.id)}
-                      disabled={!newItem.name || !newItem.price}
-                      className="px-4 py-2 rounded-lg bg-yeno-500 text-white text-sm font-medium hover:bg-yeno-600 transition disabled:opacity-50"
-                    >
-                      Ajouter le plat
-                    </button>
+                    {editingCategoryId === cat.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditSave(cat.id)}
+                          disabled={!newItem.name || !newItem.price}
+                          className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition disabled:opacity-50"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          onClick={handleEditCancel}
+                          className="px-4 py-2 rounded-lg bg-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-400 transition"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAddItem(cat.id)}
+                        disabled={!newItem.name || !newItem.price}
+                        className="px-4 py-2 rounded-lg bg-yeno-500 text-white text-sm font-medium hover:bg-yeno-600 transition disabled:opacity-50"
+                      >
+                        Ajouter le plat
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

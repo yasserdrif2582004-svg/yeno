@@ -235,4 +235,13 @@ export function getCurrentUser(): Promise<FirebaseUser | null> {
       resolve(user);
     });
   });
+  import { updateDoc, doc } from "firebase/firestore";
+  import { db } from "./firebase";
+
+  export async function updateItem(id: string, data: any) {
+    await updateDoc(doc(db, "items", id), {
+      ...data,
+      updatedAt: new Date(),
+    });
+  }
 }
