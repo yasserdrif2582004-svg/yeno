@@ -235,12 +235,10 @@ export function getCurrentUser(): Promise<FirebaseUser | null> {
       resolve(user);
     });
   });
- }
- export async function updateItem(id: string, data: any) {
+}
+export async function updateItem(id: string, data: any) {
   await updateDoc(doc(db, "items", id), {
     ...data,
     updatedAt: new Date(),
   });
 }
-}
-
