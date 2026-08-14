@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserData } from "@/lib/firebase-utils";
 import { AdminSidebar } from "@/components/AdminSidebar";
