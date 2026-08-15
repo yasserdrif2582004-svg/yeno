@@ -39,6 +39,7 @@ export default async function PublicMenuPage({
     <PublicMenuContent
       restaurant={restaurant}
       categoriesWithItems={categoriesWithItems}
+      template={restaurant.template || "modern"}
     />
   );
 }

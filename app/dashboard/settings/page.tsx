@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { getRestaurant, updateRestaurant } from "@/lib/firebase-utils";
-import { TEMPLATES } from "@/types";
+import { TEMPLATES } from "@/components/TemplateSelector";
 import { Save } from "lucide-react";
 import TemplateSelector from "@/components/TemplateSelector";
 
@@ -60,8 +60,7 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  const availableTemplates =
-    userData?.plan === "standard" ? TEMPLATES.slice(0, 6) : TEMPLATES;
+  const availableTemplates = TEMPLATES;
 
   return (
     <div className="space-y-8 max-w-2xl">

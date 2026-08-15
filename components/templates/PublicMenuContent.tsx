@@ -6,6 +6,7 @@ import { MenuTemplate } from "@/components/templates";
 export default function PublicMenuContent({
   restaurant,
   categoriesWithItems,
+  template,
 }: any) {
   const [lang, setLang] = useState("fr");
 
@@ -20,6 +21,7 @@ export default function PublicMenuContent({
       setLang={setLang}
       showLangSwitcher={showLangSwitcher}
       langs={langs}
+      template={template || "modern"}
     />
   );
 }
