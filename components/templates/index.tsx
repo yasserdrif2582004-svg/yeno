@@ -1,994 +1,1137 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight, Star, Utensils } from "lucide-react";
 
-// ═══════════════════════════════════════════════════════════
-// INTERFACES
-// ═══════════════════════════════════════════════════════════
-export interface Item {
-  id: string;
-  name: string;
-  nameEn?: string;
-  nameEs?: string;
-  description?: string;
-  descEn?: string;
-  descEs?: string;
-  price: number;
-  image?: string;
-  available?: boolean;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  nameEn?: string;
-  nameEs?: string;
-  items?: Item[];
-}
-
-export interface Restaurant {
-  id: string;
-  name: string;
-  description?: string;
-  logo?: string;
-  phone?: string;
-  address?: string;
-  template?: string;
-  primaryColor?: string;
-  accentColor?: string;
-  languages?: string;
-}
-
-export interface TemplateProps {
-  restaurant: Restaurant;
-  categoriesWithItems: Category[];
-  lang: string;
-  setLang: (l: string) => void;
-  showLangSwitcher: boolean;
-  langs: string[];
-}
-
-// ═══════════════════════════════════════════════════════════
-// UTILITAIRES
-// ═══════════════════════════════════════════════════════════
-function t(field: "name" | "description", item: Item | Category, lang: string): string {
-  if (lang === "fr") return (item as any)[field] || "";
-  const alt = (item as any)[`${field}${lang.toUpperCase()}`];
-  return alt || (item as any)[field] || "";
-}
-
-function formatPriceDH(price: number): string {
-  return `${price.toFixed(0)} DH`;
-}
-
-function ItemImage({ src, size = "normal" }: { src?: string; size?: "small" | "normal" | "large" }) {
-  if (!src) return null;
-  const sizes = {
-    small: { width: "60px", height: "60px" },
-    normal: { width: "80px", height: "80px" },
-    large: { width: "100%", height: "160px" },
-  };
-  return (
-    <div style={{
-      ...sizes[size],
-      borderRadius: size === "large" ? "12px 12px 0 0" : "10px",
-      backgroundImage: `url(${src})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      flexShrink: 0,
-    }} />
-  );
-}
-
-function RestaurantInfo({ restaurant }: { restaurant: Restaurant }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginTop: "16px", fontSize: "13px", flexWrap: "wrap", opacity: 0.8 }}>
-      {restaurant.phone && <span>📞 {restaurant.phone}</span>}
-      {restaurant.address && <span>📍 {restaurant.address}</span>}
-    </div>
-  );
-}
-
-function LangSwitcher({ lang, setLang, langs, dark }: { lang: string; setLang: (l: string) => void; langs: string[]; dark?: boolean }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", padding: "10px 24px" }}>
-      {langs.map(l => (
-        <button key={l} onClick={() => setLang(l)} style={{
-          padding: "6px 14px", borderRadius: "20px", border: "none", fontSize: "12px", fontWeight: 600,
-          cursor: "pointer", background: lang === l ? (dark ? "#fff" : "#111") : "rgba(0,0,0,0.04)",
-          color: lang === l ? (dark ? "#111" : "#fff") : "rgba(0,0,0,0.4)", transition: "all 0.2s"
-        }}>{l.toUpperCase()}</button>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 1 : MINIMAL
-// ═══════════════════════════════════════════════════════════
-export function MinimalTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#1a1a1a";
-  const accent = restaurant.accentColor || primary;
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: primary, background: "#fff", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, ${primary}, ${accent})`, padding: "80px 24px 60px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, margin: "0 0 8px", letterSpacing: "-1px" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.8, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #eee", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "800px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#f3f4f6",
-              color: activeCat === cat.id ? "#fff" : "#6b7280", transition: "all 0.2s"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ display: "flex", gap: "16px", alignItems: "flex-start", padding: "20px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <ItemImage src={item.image} size="small" />
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: "17px", fontWeight: 600, margin: "0 0 4px" }}>{t("name", item, lang)}</h3>
-                  <p style={{ fontSize: "13px", color: "#9ca3af", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-                <span style={{ fontSize: "18px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-              </div>
-            ))}
+const templates: Record<string, any> = {
+  // ═══ 1. MODERN ═══
+  modern: {
+    name: "Modern",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white p-4 pb-20">
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="max-w-md mx-auto"
+        >
+          <div className="text-center py-8">
+            <motion.div
+              whileHover={{ scale: 1.05, rotate: 2 }}
+              className="w-20 h-20 mx-auto bg-gradient-to-tr from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-4"
+            >
+              {restaurant.name?.[0]}
+            </motion.div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {restaurant.name}
+            </h1>
+            <p className="text-gray-500 mt-1">{restaurant.description}</p>
           </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.6)", padding: "40px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Menu digitalisé avec YENO</p>
-      </footer>
-    </div>
-  );
-}
 
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 2 : MODERN
-// ═══════════════════════════════════════════════════════════
-export function ModernTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#4f46e5";
-  const accent = restaurant.accentColor || "#7c3aed";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#1f2937", background: "#f8fafc", minHeight: "100vh" }}>
-      <div style={{ background: `linear-gradient(135deg, ${primary}, ${accent})`, padding: "60px 24px", textAlign: "center", color: "#fff" }}>
-        {restaurant.logo && <img src={restaurant.logo} alt="" style={{ width: "80px", height: "80px", borderRadius: "20px", objectFit: "cover", marginBottom: "16px" }} />}
-        <h1 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 8px" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.8 }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </div>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #e5e7eb", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1100px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#f3f4f6",
-              color: activeCat === cat.id ? "#fff" : "#6b7280"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-              {cat.items?.filter(i => i.available !== false).map(item => (
-                <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", border: "1px solid #e5e7eb" }}>
-                  <ItemImage src={item.image} size="large" />
-                  <div style={{ padding: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "6px" }}>
-                      <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>{t("name", item, lang)}</h3>
-                      <span style={{ fontSize: "15px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                    </div>
-                    <p style={{ fontSize: "13px", color: "#9ca3af", margin: 0 }}>{t("description", item, lang)}</p>
-                  </div>
-                </div>
+          {showLangSwitcher && (
+            <div className="flex justify-center gap-2 mb-6">
+              {langs.map((l: string) => (
+                <motion.button
+                  key={l}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setLang(l)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition ${
+                    lang === l
+                      ? "bg-gray-900 text-white"
+                      : "bg-white text-gray-600 border"
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </motion.button>
               ))}
             </div>
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: "#fff", borderTop: "1px solid #e5e7eb", padding: "30px 24px", textAlign: "center", color: "#9ca3af", fontSize: "13px" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
+          )}
 
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 3 : ELEGANT
-// ═══════════════════════════════════════════════════════════
-export function ElegantTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#3d2b1f";
-  const accent = restaurant.accentColor || "#c9a96e";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "Georgia, serif", color: primary, background: "#faf8f5", minHeight: "100vh" }}>
-      <div style={{ background: primary, padding: "60px 24px", textAlign: "center", color: "#fff" }}>
-        <div style={{ width: "60px", height: "1px", background: accent, margin: "0 auto 24px" }} />
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 700, margin: "0 0 12px", letterSpacing: "2px", textTransform: "uppercase" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.7, fontStyle: "italic" }}>{restaurant.description}</p>
-        <div style={{ width: "60px", height: "1px", background: accent, margin: "24px auto 0" }} />
-        <RestaurantInfo restaurant={restaurant} />
-      </div>
-      {showLangSwitcher && (
-        <div style={{ textAlign: "center", padding: "10px", borderBottom: "1px solid rgba(61,43,31,0.08)" }}>
-          {langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              margin: "0 4px", padding: "6px 16px", border: `1px solid ${lang === l ? primary : "#ddd"}`,
-              borderRadius: "4px", background: lang === l ? primary : "transparent", color: lang === l ? "#fff" : "#666",
-              cursor: "pointer", fontSize: "12px"
-            }}>{l.toUpperCase()}</button>
-          ))}
-        </div>
-      )}
-      <div style={{ background: "#faf8f5", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid rgba(61,43,31,0.08)", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "transparent",
-              color: activeCat === cat.id ? "#fff" : "rgba(61,43,31,0.5)"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "700px", margin: "0 auto", padding: "50px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            <h2 style={{ textAlign: "center", fontSize: "12px", letterSpacing: "3px", textTransform: "uppercase", color: accent, marginBottom: "30px" }}>{t("name", cat, lang)}</h2>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ display: "flex", gap: "16px", alignItems: "center", padding: "20px 0", borderBottom: "1px solid rgba(61,43,31,0.06)" }}>
-                <ItemImage src={item.image} size="small" />
-                <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>{t("name", item, lang)}</h3>
-                    <div style={{ flex: 1, maxWidth: "100px", borderBottom: "1px dotted rgba(61,43,31,0.2)" }} />
-                    <span style={{ fontSize: "17px", fontWeight: 600, color: accent }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "rgba(61,43,31,0.5)", margin: 0, fontStyle: "italic" }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.5)", padding: "40px 24px", textAlign: "center" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 4 : DARK
-// ═══════════════════════════════════════════════════════════
-export function DarkTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#0a0a0a";
-  const accent = restaurant.accentColor || "#d4af37";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#e5e5e5", background: "#0a0a0a", minHeight: "100vh" }}>
-      <header style={{ padding: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: "1200px", margin: "0 auto" }}>
-        <span style={{ fontSize: "18px", fontWeight: 700, color: "#fff", letterSpacing: "2px", textTransform: "uppercase" }}>{restaurant.name}</span>
-        <div style={{ display: "flex", gap: "12px" }}>
-          {showLangSwitcher && langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{ background: "none", border: "none", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", cursor: "pointer", color: lang === l ? accent : "rgba(255,255,255,0.3)", letterSpacing: "1px" }}>{l}</button>
-          ))}
-        </div>
-      </header>
-      <div style={{ padding: "60px 24px", textAlign: "center" }}>
-        {restaurant.logo && <img src={restaurant.logo} alt="" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", marginBottom: "24px", border: `2px solid ${accent}` }} />}
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, color: "#fff", margin: "0 0 12px" }}>{restaurant.name}</h1>
-        <p style={{ color: "rgba(255,255,255,0.4)", maxWidth: "500px", margin: "0 auto" }}>{restaurant.description}</p>
-        <div style={{ width: "50px", height: "2px", background: accent, margin: "24px auto 0" }} />
-        <RestaurantInfo restaurant={restaurant} />
-      </div>
-      <div style={{ background: "rgba(255,255,255,0.02)", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "4px", maxWidth: "1200px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 22px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? accent : "rgba(255,255,255,0.05)",
-              color: activeCat === cat.id ? "#0a0a0a" : "rgba(255,255,255,0.5)"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "900px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", padding: "24px", marginBottom: "12px", display: "flex", gap: "16px", alignItems: "flex-start" }}>
-                <ItemImage src={item.image} size="normal" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#fff", margin: 0 }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "16px", fontWeight: 700, color: accent }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "30px 24px", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: "12px" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 5 : CAFE
-// ═══════════════════════════════════════════════════════════
-export function CafeTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#5d4037";
-  const accent = restaurant.accentColor || "#d4a574";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#3e2723", background: "#fdf6e3", minHeight: "100vh" }}>
-      <header style={{ background: primary, padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "18px", fontWeight: 700, color: "#fff" }}>☕ {restaurant.name}</span>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {showLangSwitcher && langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{ background: "none", border: "none", fontSize: "11px", fontWeight: 600, cursor: "pointer", color: lang === l ? "#fff" : "rgba(255,255,255,0.5)" }}>{l.toUpperCase()}</button>
-          ))}
-        </div>
-      </header>
-      <div style={{ background: `linear-gradient(180deg, ${primary}, ${accent}60)`, padding: "50px 24px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, margin: "0 0 8px" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.8 }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </div>
-      <div style={{ background: "#fff", borderBottom: "2px solid #f0e6d2", position: "sticky", top: 0, zIndex: 50, overflowX: "auto" }}>
-        <div style={{ display: "flex", maxWidth: "1100px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "16px 24px", border: "none", borderBottom: `3px solid ${activeCat === cat.id ? accent : "transparent"}`,
-              background: "transparent", fontSize: "14px", fontWeight: activeCat === cat.id ? 700 : 500,
-              color: activeCat === cat.id ? primary : "rgba(62,39,35,0.4)", cursor: "pointer", whiteSpace: "nowrap"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 12px rgba(93,64,55,0.06)", border: "1px solid #f0e6d2", position: "relative", overflow: "hidden" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: accent }} />
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", marginTop: item.image ? "12px" : "0" }}>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: primary, margin: 0 }}>{t("name", item, lang)}</h3>
-                  <span style={{ fontSize: "15px", fontWeight: 700, color: accent }}>{formatPriceDH(item.price)}</span>
-                </div>
-                <p style={{ fontSize: "13px", color: "rgba(62,39,35,0.55)", margin: 0 }}>{t("description", item, lang)}</p>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.5)", padding: "30px 24px", textAlign: "center" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 6 : VIBRANT
-// ═══════════════════════════════════════════════════════════
-export function VibrantTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#7c3aed";
-  const accent = restaurant.accentColor || "#ec4899";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#1e1b4b", background: "#faf5ff", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, ${primary}, ${accent})`, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "20px", fontWeight: 800, color: "#fff" }}>{restaurant.name}</span>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {showLangSwitcher && langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{ background: "none", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: lang === l ? "#fff" : "rgba(255,255,255,0.5)" }}>{l.toUpperCase()}</button>
-          ))}
-        </div>
-      </header>
-      <div style={{ padding: "50px 24px", textAlign: "center", background: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 900, background: `linear-gradient(135deg, ${primary}, ${accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 8px" }}>{restaurant.name}</h1>
-        <p style={{ color: "rgba(30,27,75,0.5)" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </div>
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid rgba(0,0,0,0.05)", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1200px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 700,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? `linear-gradient(135deg, ${primary}, ${accent})` : "#f3e8ff",
-              color: activeCat === cat.id ? "#fff" : primary
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "16px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 16px rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.08)" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0 }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "14px", fontWeight: 800, color: accent }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "12px", color: "rgba(30,27,75,0.45)", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, padding: "30px 24px", textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 7 : NATURE
-// ═══════════════════════════════════════════════════════════
-export function NatureTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#2d5a27";
-  const accent = restaurant.accentColor || "#8bc34a";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#1b3a1a", background: "#f1f8e9", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, ${primary}, #4a7c43)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px" }}>🌿 {restaurant.name}</h1>
-        <p style={{ opacity: 0.85, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #c8e6c9", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#e8f5e9",
-              color: activeCat === cat.id ? "#fff" : "#2d5a27"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 2px 12px rgba(45,90,39,0.08)", border: "1px solid #c8e6c9" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#558b2f", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.6)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Menu frais & naturel</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 8 : OCEAN
-// ═══════════════════════════════════════════════════════════
-export function OceanTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#006064";
-  const accent = restaurant.accentColor || "#00bcd4";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#004d40", background: "#e0f7fa", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(180deg, ${primary}, #00838f)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px" }}>🌊 {restaurant.name}</h1>
-        <p style={{ opacity: 0.85, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "2px solid #b2ebf2", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#e0f7fa",
-              color: activeCat === cat.id ? "#fff" : "#006064"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 16px rgba(0,96,100,0.08)", border: "1px solid #b2ebf2" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#00838f", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.6)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Saveurs de l'océan</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 9 : SUNSET
-// ═══════════════════════════════════════════════════════════
-export function SunsetTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#e65100";
-  const accent = restaurant.accentColor || "#ff9800";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#3e2723", background: "#fff3e0", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, #ff6f00, ${accent}, #ffcc80)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px", textShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>🌅 {restaurant.name}</h1>
-        <p style={{ opacity: 0.9, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #ffe0b2", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#fff3e0",
-              color: activeCat === cat.id ? "#fff" : "#e65100"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 16px rgba(230,81,0,0.08)", border: "1px solid #ffe0b2" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#bf360c", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.7)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Menu coucher de soleil</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 10 : LUXURY
-// ═══════════════════════════════════════════════════════════
-export function LuxuryTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#1a1a1a";
-  const accent = restaurant.accentColor || "#c9a227";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", color: "#1a1a1a", background: "#fafafa", minHeight: "100vh" }}>
-      <header style={{ background: "#0a0a0a", padding: "80px 24px 60px", textAlign: "center", color: "#fff", borderBottom: `3px solid ${accent}` }}>
-        <div style={{ width: "80px", height: "2px", background: accent, margin: "0 auto 28px" }} />
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 400, margin: "0 0 12px", letterSpacing: "4px", textTransform: "uppercase" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.6, fontStyle: "italic", fontSize: "15px" }}>{restaurant.description}</p>
-        <div style={{ width: "80px", height: "2px", background: accent, margin: "28px auto 0" }} />
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && (
-        <div style={{ textAlign: "center", padding: "12px", background: "#f5f5f5", borderBottom: "1px solid #e0e0e0" }}>
-          {langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              margin: "0 6px", padding: "6px 18px", border: `1px solid ${lang === l ? accent : "#ccc"}`,
-              background: lang === l ? "#0a0a0a" : "transparent", color: lang === l ? accent : "#666",
-              cursor: "pointer", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase"
-            }}>{l}</button>
-          ))}
-        </div>
-      )}
-      <div style={{ background: "#fafafa", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #e0e0e0", padding: "14px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 24px", border: "none", background: "transparent", fontSize: "12px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "2px", textTransform: "uppercase",
-              color: activeCat === cat.id ? accent : "#999", borderBottom: `2px solid ${activeCat === cat.id ? accent : "transparent"}`
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "50px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            <h2 style={{ textAlign: "center", fontSize: "11px", letterSpacing: "4px", textTransform: "uppercase", color: accent, marginBottom: "40px" }}>{t("name", cat, lang)}</h2>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ display: "flex", gap: "20px", alignItems: "center", padding: "24px 0", borderBottom: "1px solid #eee" }}>
-                <ItemImage src={item.image} size="normal" />
-                <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginBottom: "8px" }}>
-                    <h3 style={{ fontSize: "17px", fontWeight: 400, margin: 0, letterSpacing: "1px" }}>{t("name", item, lang)}</h3>
-                    <div style={{ flex: 1, maxWidth: "120px", borderBottom: `1px dotted ${accent}` }} />
-                    <span style={{ fontSize: "16px", fontWeight: 600, color: accent }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "12px", color: "#999", margin: 0, fontStyle: "italic" }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: "#0a0a0a", color: "rgba(255,255,255,0.3)", padding: "40px 24px", textAlign: "center", fontSize: "12px", letterSpacing: "2px" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 11 : FRESH
-// ═══════════════════════════════════════════════════════════
-export function FreshTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#43a047";
-  const accent = restaurant.accentColor || "#ffeb3b";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#1b5e20", background: "#f9fbe7", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, ${primary}, #66bb6a)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px" }}>🥗 {restaurant.name}</h1>
-        <p style={{ opacity: 0.9, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "2px solid #c5e1a5", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#f1f8e9",
-              color: activeCat === cat.id ? "#fff" : "#2e7d32"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 12px rgba(67,160,71,0.08)", border: "1px solid #c5e1a5" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#2e7d32", whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#558b2f", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.7)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Fraîcheur garantie</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 12 : COZY
-// ═══════════════════════════════════════════════════════════
-export function CozyTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#6d4c41";
-  const accent = restaurant.accentColor || "#ffcc80";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#3e2723", background: "#fff8e1", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, ${primary}, #8d6e63)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px" }}>🏠 {restaurant.name}</h1>
-        <p style={{ opacity: 0.9, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #ffe0b2", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#fff3e0",
-              color: activeCat === cat.id ? "#fff" : "#5d4037"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "20px", overflow: "hidden", boxShadow: "0 4px 16px rgba(109,76,65,0.08)", border: "1px solid #ffe0b2" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#e65100", whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#8d6e63", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.6)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Ambiance chaleureuse</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 13 : URBAN
-// ═══════════════════════════════════════════════════════════
-export function UrbanTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#37474f";
-  const accent = restaurant.accentColor || "#ff5722";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", color: "#263238", background: "#eceff1", minHeight: "100vh" }}>
-      <header style={{ background: primary, padding: "60px 24px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 900, margin: "0 0 10px", letterSpacing: "-1px" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.7, fontSize: "15px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} dark />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "2px solid #cfd8dc", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "4px", maxWidth: "1100px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "4px", border: "none", fontSize: "13px", fontWeight: 700,
-              cursor: "pointer", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "1px",
-              background: activeCat === cat.id ? accent : "transparent",
-              color: activeCat === cat.id ? "#fff" : "#78909c"
-            }}>{t("name", cat, lang)}</button>
-          ))}
-        </div>
-      </div>
-      <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-              {cat.items?.filter(i => i.available !== false).map(item => (
-                <div key={item.id} style={{ background: "#fff", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #cfd8dc" }}>
-                  <ItemImage src={item.image} size="large" />
-                  <div style={{ padding: "18px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                      <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("name", item, lang)}</h3>
-                      <span style={{ fontSize: "14px", fontWeight: 800, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-8"
+            >
+              <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <Utensils className="w-5 h-5 text-green-500" />
+                {cat.name}
+              </h2>
+              <div className="space-y-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex gap-4"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-20 h-20 rounded-xl object-cover"
+                        alt=""
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-900">{item.name}</h3>
+                        <span className="font-bold text-green-600">
+                          {item.price} DH
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {item.description}
+                      </p>
                     </div>
-                    <p style={{ fontSize: "12px", color: "#90a4ae", margin: 0, lineHeight: 1.5 }}>{t("description", item, lang)}</p>
-                  </div>
-                </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    ),
+  },
+
+  // ═══ 2. GLASS ═══
+  glass: {
+    name: "Glass",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-center py-8"
+          >
+            <div className="w-24 h-24 mx-auto bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center text-white text-3xl font-bold border border-white/30 shadow-2xl mb-4">
+              {restaurant.name?.[0]}
+            </div>
+            <h1 className="text-3xl font-bold text-white drop-shadow-lg">
+              {restaurant.name}
+            </h1>
+            <p className="text-white/80 mt-2">{restaurant.description}</p>
+          </motion.div>
+
+          {showLangSwitcher && (
+            <div className="flex justify-center gap-2 mb-6">
+              {langs.map((l: string) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md ${
+                    lang === l
+                      ? "bg-white text-purple-600"
+                      : "bg-white/20 text-white border border-white/30"
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
               ))}
             </div>
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: "#263238", color: "rgba(255,255,255,0.3)", padding: "30px 24px", textAlign: "center", fontSize: "12px", textTransform: "uppercase", letterSpacing: "2px" }}>
-        <p>{restaurant.name}</p>
-      </footer>
-    </div>
-  );
-}
+          )}
 
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 14 : TROPICAL
-// ═══════════════════════════════════════════════════════════
-export function TropicalTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#e91e63";
-  const accent = restaurant.accentColor || "#ffeb3b";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#880e4f", background: "#fffde7", minHeight: "100vh" }}>
-      <header style={{ background: `linear-gradient(135deg, #f06292, ${primary}, #9c27b0)`, padding: "70px 24px 50px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, margin: "0 0 10px", textShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>🌺 {restaurant.name}</h1>
-        <p style={{ opacity: 0.9, fontSize: "16px" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && <LangSwitcher lang={lang} setLang={setLang} langs={langs} />}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #f8bbd0", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "8px", maxWidth: "1000px", margin: "0 auto" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", borderRadius: "100px", border: "none", fontSize: "13px", fontWeight: 700,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "#fce4ec",
-              color: activeCat === cat.id ? "#fff" : "#c2185b"
-            }}>{t("name", cat, lang)}</button>
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.15 }}
+              className="mb-6"
+            >
+              <h2 className="text-white font-bold text-lg mb-3 ml-1">
+                {cat.name}
+              </h2>
+              <div className="space-y-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.03 }}
+                    className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 shadow-xl flex gap-4"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-16 h-16 rounded-xl object-cover border border-white/30"
+                        alt=""
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-white">{item.name}</h3>
+                        <span className="font-bold text-yellow-300">
+                          {item.price} DH
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/70 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ background: "#fff", borderRadius: "20px", overflow: "hidden", boxShadow: "0 4px 20px rgba(233,30,99,0.08)", border: "1px solid #f8bbd0" }}>
-                <ItemImage src={item.image} size="large" />
-                <div style={{ padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
-                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: primary }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#ad1457", whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#880e4f", margin: 0 }}>{t("description", item, lang)}</p>
-                </div>
+    ),
+  },
+
+  // ═══ 3. DARK ═══
+  dark: {
+    name: "Dark",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-black text-white p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1 }}
+            className="text-center py-10"
+          >
+            <div className="w-20 h-20 mx-auto bg-lime-400 rounded-full flex items-center justify-center text-black text-2xl font-black mb-4 shadow-[0_0_40px_rgba(163,230,53,0.4)]">
+              {restaurant.name?.[0]}
+            </div>
+            <h1 className="text-4xl font-black tracking-tight">
+              {restaurant.name}
+            </h1>
+            <p className="text-gray-400 mt-2 uppercase tracking-widest text-xs">
+              {restaurant.description}
+            </p>
+          </motion.div>
+
+          {showLangSwitcher && (
+            <div className="flex justify-center gap-2 mb-8">
+              {langs.map((l: string) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`px-4 py-2 rounded-none text-sm font-bold border ${
+                    lang === l
+                      ? "bg-lime-400 text-black border-lime-400"
+                      : "bg-transparent text-gray-400 border-gray-700"
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {categories.map((cat: any, i: number) => (
+            <div key={cat.id} className="mb-10">
+              <h2 className="text-lime-400 font-black text-sm uppercase tracking-[0.2em] mb-4 border-b border-gray-800 pb-2">
+                {cat.name}
+              </h2>
+              <div className="space-y-4">
+                {cat.items?.map((item: any, idx: number) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="group flex justify-between items-start py-3 border-b border-gray-900 hover:border-lime-400/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg group-hover:text-lime-400 transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {item.description}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-lime-400 text-lg">
+                      {item.price}
+                    </span>
+                  </motion.div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: primary, color: "rgba(255,255,255,0.7)", padding: "35px 24px", textAlign: "center", fontSize: "13px" }}>
-        <p>{restaurant.name} — Saveurs tropicales</p>
-      </footer>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TEMPLATE 15 : CLASSIC
-// ═══════════════════════════════════════════════════════════
-export function ClassicTemplate({ restaurant, categoriesWithItems, lang, setLang, showLangSwitcher, langs }: TemplateProps) {
-  const [activeCat, setActiveCat] = useState(categoriesWithItems[0]?.id || "");
-  const primary = restaurant.primaryColor || "#1565c0";
-  const accent = restaurant.accentColor || "#ef5350";
-  const validCats = categoriesWithItems.filter(c => c.items?.some(i => i.available !== false));
-
-  return (
-    <div style={{ fontFamily: "Georgia, serif", color: "#263238", background: "#fff", minHeight: "100vh" }}>
-      <header style={{ background: primary, padding: "60px 24px", textAlign: "center", color: "#fff", borderBottom: `4px solid ${accent}` }}>
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 700, margin: "0 0 10px" }}>{restaurant.name}</h1>
-        <p style={{ opacity: 0.85, fontSize: "16px", fontStyle: "italic" }}>{restaurant.description}</p>
-        <RestaurantInfo restaurant={restaurant} />
-      </header>
-      {showLangSwitcher && (
-        <div style={{ textAlign: "center", padding: "10px", background: "#f5f5f5", borderBottom: "1px solid #e0e0e0" }}>
-          {langs.map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              margin: "0 4px", padding: "6px 16px", border: `1px solid ${lang === l ? primary : "#ccc"}`,
-              borderRadius: "4px", background: lang === l ? primary : "transparent", color: lang === l ? "#fff" : "#666",
-              cursor: "pointer", fontSize: "12px"
-            }}>{l.toUpperCase()}</button>
-          ))}
-        </div>
-      )}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #e0e0e0", padding: "12px 24px", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
-          {validCats.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-              padding: "10px 20px", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", background: activeCat === cat.id ? primary : "transparent",
-              color: activeCat === cat.id ? "#fff" : "#546e7a"
-            }}>{t("name", cat, lang)}</button>
+            </div>
           ))}
         </div>
       </div>
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "50px 24px 80px" }}>
-        {validCats.filter(c => c.id === activeCat).map(cat => (
-          <div key={cat.id}>
-            <h2 style={{ textAlign: "center", fontSize: "14px", letterSpacing: "3px", textTransform: "uppercase", color: primary, marginBottom: "30px", fontWeight: 700 }}>{t("name", cat, lang)}</h2>
-            {cat.items?.filter(i => i.available !== false).map(item => (
-              <div key={item.id} style={{ display: "flex", gap: "16px", alignItems: "center", padding: "18px 0", borderBottom: "1px solid #eee" }}>
-                <ItemImage src={item.image} size="small" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
-                    <h3 style={{ fontSize: "17px", fontWeight: 600, margin: 0 }}>{t("name", item, lang)}</h3>
-                    <span style={{ fontSize: "16px", fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{formatPriceDH(item.price)}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#78909c", margin: 0, fontStyle: "italic" }}>{t("description", item, lang)}</p>
+    ),
+  },
+
+  // ═══ 4. NEON ═══
+  neon: {
+    name: "Néon",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-[#050505] p-4 pb-20 overflow-hidden">
+        <div className="max-w-md mx-auto relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-green-500/20 rounded-full blur-[100px]" />
+
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-center py-10 relative z-10"
+          >
+            <motion.div
+              animate={{
+                boxShadow: [
+                  "0 0 20px #00ff88",
+                  "0 0 60px #00ff88",
+                  "0 0 20px #00ff88",
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-20 h-20 mx-auto bg-black border-2 border-[#00ff88] rounded-xl flex items-center justify-center text-[#00ff88] text-2xl font-bold mb-4"
+            >
+              {restaurant.name?.[0]}
+            </motion.div>
+            <h1 className="text-3xl font-bold text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.5)]">
+              {restaurant.name}
+            </h1>
+          </motion.div>
+
+          {categories.map((cat: any) => (
+            <div key={cat.id} className="mb-8 relative z-10">
+              <h2
+                className="text-[#ff00ff] font-bold text-lg mb-4 uppercase tracking-wider"
+                style={{ textShadow: "0 0 10px #ff00ff" }}
+              >
+                ■ {cat.name}
+              </h2>
+              <div className="space-y-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-black/50 border border-[#00ff88]/30 rounded-lg p-4 backdrop-blur-sm"
+                  >
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-white">{item.name}</h3>
+                      <span className="font-mono text-[#00ff88] font-bold">
+                        {item.price} DH
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {item.description}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 5. PASTEL ═══
+  pastel: {
+    name: "Pastel",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-pink-50 to-blue-50 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <motion.div
+            initial={{ y: -30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="text-center py-8"
+          >
+            <div className="w-24 h-24 mx-auto bg-gradient-to-tr from-purple-200 to-pink-200 rounded-full flex items-center justify-center text-purple-600 text-3xl font-bold shadow-lg mb-4">
+              {restaurant.name?.[0]}
+            </div>
+            <h1 className="text-3xl font-bold text-purple-800">
+              {restaurant.name}
+            </h1>
+            <p className="text-purple-400 mt-1">{restaurant.description}</p>
+          </motion.div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-8"
+            >
+              <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-purple-100">
+                <h2 className="text-purple-600 font-bold text-lg mb-4 text-center">
+                  ✦ {cat.name} ✦
+                </h2>
+                <div className="space-y-4">
+                  {cat.items?.map((item: any) => (
+                    <motion.div
+                      key={item.id}
+                      whileHover={{ scale: 1.03, rotate: -1 }}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-purple-50 flex gap-3"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          className="w-16 h-16 rounded-2xl object-cover"
+                          alt=""
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-gray-800">
+                            {item.name}
+                          </h3>
+                          <span className="font-bold text-pink-500 bg-pink-50 px-2 py-1 rounded-full text-sm">
+                            {item.price} DH
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        ))}
-      </main>
-      <footer style={{ background: "#f5f5f5", borderTop: "1px solid #e0e0e0", padding: "35px 24px", textAlign: "center", color: "#90a4ae", fontSize: "13px" }}>
-        <p>{restaurant.name} — Menu classique</p>
-      </footer>
-    </div>
-  );
-}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
 
-// ═══════════════════════════════════════════════════════════
-// MAPPING & EXPORT
-// ═══════════════════════════════════════════════════════════
-export const templateMap: Record<string, React.FC<TemplateProps>> = {
-  minimal: MinimalTemplate,
-  modern: ModernTemplate,
-  elegant: ElegantTemplate,
-  dark: DarkTemplate,
-  cafe: CafeTemplate,
-  vibrant: VibrantTemplate,
-  nature: NatureTemplate,
-  ocean: OceanTemplate,
-  sunset: SunsetTemplate,
-  luxury: LuxuryTemplate,
-  fresh: FreshTemplate,
-  cozy: CozyTemplate,
-  urban: UrbanTemplate,
-  tropical: TropicalTemplate,
-  classic: ClassicTemplate,
+  // ═══ 6. MINIMAL ═══
+  minimal: {
+    name: "Minimal",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-white p-6 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="py-12 border-b border-black mb-8">
+            <h1 className="text-5xl font-light tracking-tight text-black">
+              {restaurant.name}
+            </h1>
+            <p className="text-gray-400 mt-2 text-sm tracking-wide uppercase">
+              {restaurant.description}
+            </p>
+          </div>
+
+          {categories.map((cat: any) => (
+            <div key={cat.id} className="mb-12">
+              <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-gray-400 mb-6">
+                {cat.name}
+              </h2>
+              <div className="space-y-6">
+                {cat.items?.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex justify-between items-baseline group cursor-pointer"
+                  >
+                    <div className="flex-1">
+                      <h3 className="text-lg font-medium text-black group-hover:text-gray-600 transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+                    <div className="ml-4 flex items-baseline gap-2">
+                      <div className="border-b border-dotted border-gray-300 w-8" />
+                      <span className="font-light text-lg">{item.price}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 7. ELEGANT ═══
+  elegant: {
+    name: "Élégant",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-stone-950 text-stone-100 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.5 }}
+            className="text-center py-12 border-b border-yellow-600/30"
+          >
+            <div className="w-16 h-16 mx-auto border-2 border-yellow-600 rounded-none flex items-center justify-center text-yellow-500 text-2xl font-serif mb-6">
+              {restaurant.name?.[0]}
+            </div>
+            <h1 className="text-4xl font-serif text-yellow-500 tracking-wide">
+              {restaurant.name}
+            </h1>
+            <div className="w-16 h-px bg-yellow-600/50 mx-auto mt-4" />
+            <p className="text-stone-400 mt-4 italic font-serif">
+              {restaurant.description}
+            </p>
+          </motion.div>
+
+          {categories.map((cat: any, i: number) => (
+            <div key={cat.id} className="mb-10 mt-8">
+              <h2 className="text-yellow-600 font-serif text-xl mb-6 text-center italic">
+                — {cat.name} —
+              </h2>
+              <div className="space-y-6">
+                {cat.items?.map((item: any, idx: number) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: idx * 0.15 }}
+                    className="flex gap-4 pb-6 border-b border-stone-800"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-24 h-24 object-cover border border-yellow-600/30"
+                        alt=""
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-serif text-lg text-stone-100">
+                          {item.name}
+                        </h3>
+                        <span className="font-serif text-yellow-500 text-lg">
+                          {item.price} DH
+                        </span>
+                      </div>
+                      <p className="text-sm text-stone-500 mt-2 font-serif italic">
+                        {item.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 8. CAFE ═══
+  cafe: {
+    name: "Café",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-[#fff7ed] p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-8">
+            <div className="w-20 h-20 mx-auto bg-[#92400e] rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4">
+              ☕
+            </div>
+            <h1 className="text-3xl font-bold text-[#78350f]">
+              {restaurant.name}
+            </h1>
+            <p className="text-[#92400e] mt-1">{restaurant.description}</p>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-6"
+            >
+              <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#fed7aa]">
+                <h2 className="text-[#c2410c] font-bold text-lg mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-[#ea580c] rounded-full" />
+                  {cat.name}
+                </h2>
+                <div className="space-y-3">
+                  {cat.items?.map((item: any) => (
+                    <motion.div
+                      key={item.id}
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-[#fff7ed] rounded-2xl p-3 flex gap-3"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          className="w-14 h-14 rounded-xl object-cover"
+                          alt=""
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-[#78350f]">
+                            {item.name}
+                          </h3>
+                          <span className="font-bold text-[#ea580c]">
+                            {item.price} DH
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#92400e] mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 9. OCEAN ═══
+  ocean: {
+    name: "Océan",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-b from-cyan-50 to-blue-100 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <motion.div
+            initial={{ y: -20 }}
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="text-center py-8"
+          >
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4">
+              🌊
+            </div>
+            <h1 className="text-3xl font-bold text-cyan-800">
+              {restaurant.name}
+            </h1>
+          </motion.div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.15 }}
+              className="mb-6"
+            >
+              <h2 className="text-cyan-700 font-bold text-lg mb-3">
+                {cat.name}
+              </h2>
+              <div className="space-y-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.03, rotate: 1 }}
+                    className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-cyan-100 flex gap-4"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-cyan-200"
+                        alt=""
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-cyan-900">{item.name}</h3>
+                        <span className="font-bold text-blue-500">
+                          {item.price} DH
+                        </span>
+                      </div>
+                      <p className="text-sm text-cyan-600 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 10. SUNSET ═══
+  sunset: {
+    name: "Sunset",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-b from-orange-100 via-rose-100 to-purple-100 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-10">
+            <div className="w-24 h-24 mx-auto bg-gradient-to-tr from-orange-400 to-rose-500 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-xl mb-4">
+              🌅
+            </div>
+            <h1 className="text-3xl font-bold text-rose-800">
+              {restaurant.name}
+            </h1>
+            <p className="text-orange-600 mt-1">{restaurant.description}</p>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-8"
+            >
+              <h2 className="text-orange-700 font-bold text-lg mb-4 text-center">
+                {cat.name}
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ y: -5 }}
+                    className="bg-white rounded-2xl p-3 shadow-md border border-orange-100"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-full h-24 rounded-xl object-cover mb-2"
+                        alt=""
+                      />
+                    )}
+                    <h3 className="font-bold text-sm text-gray-800">
+                      {item.name}
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                      {item.description}
+                    </p>
+                    <span className="block mt-2 font-bold text-rose-500 text-sm">
+                      {item.price} DH
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 11. FOREST ═══
+  forest: {
+    name: "Forest",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-100 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-8">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4 rotate-3">
+              🌿
+            </div>
+            <h1 className="text-3xl font-bold text-green-800">
+              {restaurant.name}
+            </h1>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <div key={cat.id} className="mb-6">
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-green-100">
+                <h2 className="text-green-700 font-bold text-lg mb-4 flex items-center gap-2">
+                  <span className="text-xl">🍃</span> {cat.name}
+                </h2>
+                <div className="space-y-3">
+                  {cat.items?.map((item: any) => (
+                    <motion.div
+                      key={item.id}
+                      whileHover={{ scale: 1.02, x: 5 }}
+                      className="bg-green-50 rounded-xl p-3 flex gap-3 border-l-4 border-green-400"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          className="w-14 h-14 rounded-lg object-cover"
+                          alt=""
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-green-900">
+                            {item.name}
+                          </h3>
+                          <span className="font-bold text-green-600 bg-white px-2 py-1 rounded-lg text-sm shadow-sm">
+                            {item.price} DH
+                          </span>
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 12. BERRY ═══
+  berry: {
+    name: "Berry",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-pink-50 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-8">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-20 h-20 mx-auto bg-gradient-to-tr from-pink-400 to-rose-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-4"
+            >
+              🍓
+            </motion.div>
+            <h1 className="text-3xl font-bold text-pink-800">
+              {restaurant.name}
+            </h1>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-6"
+            >
+              <h2 className="text-pink-600 font-bold text-lg mb-3 ml-2">
+                {cat.name}
+              </h2>
+              <div className="space-y-3">
+                {cat.items?.map((item: any) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="bg-white rounded-2xl p-4 shadow-sm border-2 border-pink-100 flex gap-4"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        className="w-16 h-16 rounded-2xl object-cover"
+                        alt=""
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-800">{item.name}</h3>
+                        <span className="font-bold text-pink-500">
+                          {item.price} DH
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 13. MONO ═══
+  mono: {
+    name: "Mono",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-slate-100 p-6 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="py-10 border-b-4 border-black mb-8">
+            <h1 className="text-6xl font-black text-black uppercase tracking-tighter">
+              {restaurant.name}
+            </h1>
+            <p className="text-gray-500 mt-2 font-mono text-sm">
+              {restaurant.description}
+            </p>
+          </div>
+
+          {categories.map((cat: any) => (
+            <div key={cat.id} className="mb-10">
+              <h2 className="text-2xl font-black text-black mb-6 uppercase">
+                {cat.name}
+              </h2>
+              <div className="space-y-4">
+                {cat.items?.map((item: any, idx: number) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-white border-2 border-black p-4 flex justify-between items-center hover:bg-black hover:text-white transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <h3 className="font-bold text-lg uppercase">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs font-mono opacity-60">
+                        {item.description}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-xl">
+                      {item.price}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 14. PLAYFUL ═══
+  playful: {
+    name: "Playful",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-yellow-50 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-8">
+            <motion.div
+              animate={{ y: [0, -15, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="w-24 h-24 mx-auto bg-yellow-400 rounded-[2rem] flex items-center justify-center text-4xl mb-4 shadow-lg"
+            >
+              🍔
+            </motion.div>
+            <h1 className="text-4xl font-black text-yellow-800">
+              {restaurant.name}
+            </h1>
+            <p className="text-yellow-600 mt-2 font-bold">
+              {restaurant.description}
+            </p>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, rotate: -2 }}
+              animate={{ opacity: 1, rotate: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="mb-8"
+            >
+              <div className="bg-white rounded-[2rem] p-6 shadow-lg border-4 border-yellow-300">
+                <h2 className="text-yellow-700 font-black text-xl mb-4 text-center uppercase">
+                  {cat.name}
+                </h2>
+                <div className="space-y-4">
+                  {cat.items?.map((item: any) => (
+                    <motion.div
+                      key={item.id}
+                      whileHover={{ scale: 1.05, rotate: -1 }}
+                      className="bg-yellow-100 rounded-2xl p-4 flex gap-4 border-2 border-yellow-300"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          className="w-16 h-16 rounded-xl object-cover border-2 border-white"
+                          alt=""
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-black text-gray-800 uppercase">
+                            {item.name}
+                          </h3>
+                          <span className="font-black text-yellow-600 bg-white px-3 py-1 rounded-full">
+                            {item.price} DH
+                          </span>
+                        </div>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+
+  // ═══ 15. PREMIUM ═══
+  premium: {
+    name: "Premium",
+    render: ({
+      restaurant,
+      categories,
+      lang,
+      setLang,
+      showLangSwitcher,
+      langs,
+    }: any) => (
+      <div className="min-h-screen bg-zinc-950 p-4 pb-20">
+        <div className="max-w-md mx-auto">
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-300 to-yellow-500 rounded-none flex items-center justify-center text-black text-2xl font-bold shadow-[0_0_40px_rgba(251,191,36,0.3)] mb-6 border border-amber-400">
+              {restaurant.name?.[0]}
+            </div>
+            <h1 className="text-3xl font-light text-amber-100 tracking-[0.2em] uppercase">
+              {restaurant.name}
+            </h1>
+            <div className="w-24 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto mt-4" />
+            <p className="text-zinc-500 mt-4 text-sm tracking-widest uppercase">
+              {restaurant.description}
+            </p>
+          </div>
+
+          {categories.map((cat: any, i: number) => (
+            <div key={cat.id} className="mb-12">
+              <h2 className="text-amber-500 font-light text-sm uppercase tracking-[0.3em] mb-6 text-center">
+                ✦ {cat.name} ✦
+              </h2>
+              <div className="space-y-6">
+                {cat.items?.map((item: any, idx: number) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="group relative bg-zinc-900/50 border border-zinc-800 p-5 hover:border-amber-500/50 transition-all duration-500"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex gap-4">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          className="w-20 h-20 object-cover border border-zinc-700 group-hover:border-amber-500/50 transition-colors"
+                          alt=""
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-medium text-zinc-100 group-hover:text-amber-400 transition-colors">
+                            {item.name}
+                          </h3>
+                          <span className="font-light text-amber-400 text-lg">
+                            {item.price} DH
+                          </span>
+                        </div>
+                        <p className="text-sm text-zinc-600 mt-2 group-hover:text-zinc-400 transition-colors">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
 };
 
-export default function RestaurantTemplate(props: TemplateProps & { template?: string }) {
-  const key = (props.template || "modern").toLowerCase().trim();
-  const Template = templateMap[key] || ModernTemplate;
-  return <Template {...props} />;
-}
+export function MenuTemplate(props: any) {
+  const templateId = props.template || "modern";
+  const template = templates[templateId] || templates.modern;
 
-// Alias pour compatibilité avec PublicMenuContent.tsx
-export const MenuTemplate = RestaurantTemplate;
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={templateId}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {template.render(props)}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
